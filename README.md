@@ -58,7 +58,7 @@ mvn spring-boot:run
 
 ## Project Structure
 ```text
-src/main/java/com/nextobite/
+src/main/java/com/backend/
 ├── config/         # Security, JWT, and Web Resource Handlers
 ├── controller/     # REST API Entry points
 ├── entity/         # JPA Models (User, Recipe)
