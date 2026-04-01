@@ -5,6 +5,8 @@ target/
 !**/src/test/**/target/
 
 .env
+*.http
+*.mmdb
 
 ### STS ###
 .apt_generated

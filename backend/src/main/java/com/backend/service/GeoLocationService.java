@@ -1,28 +1,48 @@
 package com.backend.service;
 
+import com.maxmind.geoip2.DatabaseReader;
+import com.maxmind.geoip2.model.CityResponse;
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Service;
-import java.util.HashMap;
-import java.util.Map;
+import java.io.InputStream;
+import java.net.InetAddress;
 
 @Service
 public class GeoLocationService {
-    private static final Map<String, String> ZONE_MAP = new HashMap<>();
+    private DatabaseReader dbReader;
 
-    static {
-        ZONE_MAP.put("106.51.", "Gachibowli (500032)");
-        ZONE_MAP.put("122.17.", "Banjara Hills (500034)");
-        ZONE_MAP.put("49.205.", "Jubilee Hills (500033)");
-        ZONE_MAP.put("183.82.", "Madhapur (500081)");
-        ZONE_MAP.put("127.0.0.", "Development (Local)");
+    public GeoLocationService() {
+        try (InputStream dbStream = new ClassPathResource("GeoLite2-City.mmdb").getInputStream()) {
+            this.dbReader = new DatabaseReader.Builder(dbStream).build();
+        } catch (Exception e) {
+            // Log this so you know the DB is missing in production
+            System.err.println("CRITICAL: GeoLite2 database not found. Falling back to default zones.");
+        }
     }
 
     public String resolveZoneFromIp(String ipAddress) {
-        if (ipAddress == null) return "Unknown Zone";
+        // Handle local development cases
+        if (isLocal(ipAddress)) {
+            return "Hyderabad, India (Dev)";
+        }
 
-        return ZONE_MAP.entrySet().stream()
-                .filter(entry -> ipAddress.startsWith(entry.getKey()))
-                .map(Map.Entry::getValue)
-                .findFirst()
-                .orElse("Hyderabad General (500001)");
+        try {
+            InetAddress addr = InetAddress.getByName(ipAddress);
+            CityResponse response = dbReader.city(addr);
+
+            String city = response.getCity().getName();
+            String country = response.getCountry().getName();
+
+            if (city == null) return country;
+            return city + ", " + country;
+
+        } catch (Exception e) {
+            // Fallback if IP is not in database or is malformed
+            return "Global Community";
+        }
+    }
+
+    private boolean isLocal(String ip) {
+        return ip.equals("127.0.0.1") || ip.equals("0:0:0:0:0:0:0:1") || ip.startsWith("192.168.");
     }
 }
